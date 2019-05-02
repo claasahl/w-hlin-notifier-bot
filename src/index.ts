@@ -14,6 +14,7 @@ const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
   keyboard: [[{ text: "/apartments" }, { text: "/clear" }]],
   resize_keyboard: true
 };
+let browser: Browser | undefined = undefined;
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(TOKEN, { polling: true });
@@ -63,7 +64,9 @@ async function sendPreview(chatId: number, newLinks: wahlin.ApartmentLink[]) {
 }
 
 async function fetchAndPublishApartments(chatId: number): Promise<void> {
-  const browser = await wahlin.launchBrowser(EXECUTABLE);
+  if (!browser) {
+    browser = await wahlin.launchBrowser(EXECUTABLE);
+  }
   const links = await wahlin.fetchApartmentLinks(browser);
 
   const newLinks = links.filter(link => !apartments.has(link.link));
@@ -84,15 +87,24 @@ async function fetchAndPublishApartments(chatId: number): Promise<void> {
       }
     }
   }
-  return browser.close();
 }
 
 async function clearApartments(chatId: number) {
+  // clear apartments
   const noApartments = apartments.size;
   apartments.clear();
   bot.sendMessage(chatId, `Cleared ${noApartments} apartment(s)`, {
     reply_markup: markupApartments
   });
+
+  // clear browser
+  if (browser) {
+    await browser.close();
+    browser = undefined;
+    bot.sendMessage(chatId, 'Stopped "browser" as well', {
+      reply_markup: markupApartments
+    });
+  }
 }
 
 // automatically fetch and publish apartments
