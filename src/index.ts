@@ -60,6 +60,7 @@ async function fetchAndPublishApartments(chatId: number): Promise<void> {
       await bot.sendMessage(chatId, link.link).catch(() => {});
     }
   }
+  return browser.close();
 }
 
 // automatically fetch and publish apartments
