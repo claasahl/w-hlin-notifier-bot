@@ -4,18 +4,19 @@ import express from "express";
 import bodyParser from "body-parser";
 
 import * as wahlin from "./wahlin";
-import { link } from "fs";
 
 // replace the value below with the Telegram token you receive from @BotFather
 const TOKEN = process.env.TOKEN || "";
 const PORT = Number(process.env.PORT);
 const HOST = process.env.HOST;
-const SUCCESS_STICKER_ID = process.env.SUCCESS_STICKER_ID || "";
-const FAILED_STICKER_ID = process.env.FAILED_STICKER_ID || "";
 const PARENTS = (process.env.PARENTS || "").split(",");
 const CHAT_ID = (process.env.CHAT_ID as number | undefined) || -1;
 const EXECUTABLE = process.env.PUPPETEER_EXECUTABLE;
 const apartments = new Map<string, wahlin.Apartment>();
+const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
+  keyboard: [[{ text: "/apartments" }, { text: "/clear" }]],
+  resize_keyboard: true
+};
 
 // Create a bot that uses 'polling' to fetch new updates
 const polling = typeof HOST === "undefined" || typeof PORT === "undefined";
@@ -35,16 +36,10 @@ async function execute(
   if (isFromParent(msg)) {
     try {
       await command(chatId);
-      const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
-        keyboard: [[{ text: "/apartments" }, { text: "/clear" }]],
-        resize_keyboard: true
-      };
-      await bot.sendSticker(chatId, SUCCESS_STICKER_ID, {
+    } catch (error) {
+      await bot.sendMessage(chatId, error.message, {
         reply_markup: markupApartments
       });
-    } catch (error) {
-      console.log(error);
-      await bot.sendSticker(chatId, FAILED_STICKER_ID);
     }
   } else {
     await bot.sendMessage(chatId, "I shall obay mee masters, only!", {
@@ -83,25 +78,32 @@ async function fetchAndPublishApartments(chatId: number): Promise<void> {
         const apartment = await wahlin.fetchApartment(browser, link);
         apartments.set(link.link, apartment);
         await bot.sendPhoto(chatId, apartment.screenshot, {
-          caption: apartment.link
+          caption: apartment.link,
+          reply_markup: markupApartments
         });
       } catch (error) {
-        await bot.sendMessage(chatId, link.link).catch(() => {});
+        await bot
+          .sendMessage(chatId, link.link, { reply_markup: markupApartments })
+          .catch(() => {});
       }
     }
   }
   return browser.close();
 }
 
-async function clearApartments() {
+async function clearApartments(chatId: number) {
+  const noApartments = apartments.size;
   apartments.clear();
+  bot.sendMessage(chatId, `Cleared ${noApartments} apartment(s)`, {
+    reply_markup: markupApartments
+  });
 }
 
 // automatically fetch and publish apartments
 new CronJob("00 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
-new CronJob("00 36 13 * * 1-5", clearApartments).start();
+new CronJob("00 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
 
 // enable webHooks, if needed
 if (!polling) {
