@@ -6,7 +6,7 @@ import bodyParser from "body-parser";
 
 // replace the value below with the Telegram token you receive from @BotFather
 const TOKEN = process.env.TOKEN || "";
-const PORT = process.env.PORT;
+const PORT = Number(process.env.PORT);
 const HOST = process.env.HOST;
 const SUCCESS_STICKER_ID = process.env.SUCCESS_STICKER_ID || "";
 const FAILED_STICKER_ID = process.env.FAILED_STICKER_ID || "";
@@ -16,12 +16,12 @@ const EXECUTABLE = process.env.PUPPETEER_EXECUTABLE
 const apartments = new Map<string, Apartment>();
 
 // Create a bot that uses 'polling' to fetch new updates
-const bot = new TelegramBot(TOKEN, {polling: true});
+const polling = typeof HOST === "undefined" || typeof PORT === "undefined";
+const bot = new TelegramBot(TOKEN, {polling, webHook: !polling});
 
 // Listen for "/apartments" messages.
 bot.onText(/\/apartments/, async (msg) => {
     const chatId = msg.chat.id;
-    console.log(JSON.stringify(msg, null, 2))
     if (isFromParent(msg)) {
         try {
             await fetchAndPublishApartments(chatId)
@@ -124,7 +124,7 @@ job.start();
 
 
 
-if (HOST) {
+if (!polling) {
     bot.setWebHook(`${HOST}/bot${TOKEN}`);
 
     const app = express()
