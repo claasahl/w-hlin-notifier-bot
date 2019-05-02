@@ -17,7 +17,9 @@ const apartments = new Map<string, Apartment>();
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(TOKEN);
-bot.setWebHook(`https://${PROJECT_DOMAIN}.glitch.me/bot${TOKEN}`);
+if(PROJECT_DOMAIN) {
+    bot.setWebHook(`https://${PROJECT_DOMAIN}.glitch.me/bot${TOKEN}`);
+}
 
 
 // Listen for "/apartments" messages.
@@ -99,18 +101,11 @@ async function fetchApartments(): Promise<Apartment[]> {
 }
 
 // automatically fetch and publish apartments
-const fetchJob = new CronJob('00 0,5,10,15,20,25,30,35 13 * * 1-5', function() {
-	fetchAndPublishApartments(CHAT_ID);
-});
-fetchJob.start()
-const cleanJob = new CronJob('00 36 13 * * 1-5', function() {
-	apartments.clear();
-});
-cleanJob.start()
-
+new CronJob('00 0,5,10,15,20,25,30,35 13 * * 1-5', () => fetchAndPublishApartments(CHAT_ID)).start();
+new CronJob('00 36 13 * * 1-5', () => apartments.clear()).start()
 
 //
-const job = new CronJob('0 */30 * * * *', function() {
+const job = new CronJob('0 */30 * * * *', () => {
     const d = new Date();
     bot.sendMessage(CHAT_ID, d.toISOString())
 });
