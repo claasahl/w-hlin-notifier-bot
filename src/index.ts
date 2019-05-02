@@ -124,18 +124,13 @@ async function fetchAndPublishApartments(chatId: number): Promise<void> {
 }
 
 // automatically fetch and publish apartments
-new CronJob("00 0,5,10,15,20,25,30,35 13 * * 1-5", () =>
+new CronJob("00 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
 new CronJob("00 36 13 * * 1-5", () => apartments.clear()).start();
+new CronJob("0 */30 * * * *", () => bot.sendMessage(CHAT_ID, new Date().toISOString()));
 
-//
-const job = new CronJob("0 */30 * * * *", () => {
-  const d = new Date();
-  bot.sendMessage(CHAT_ID, d.toISOString());
-});
-job.start();
-
+// enable webHooks, if needed
 if (!polling) {
   bot.setWebHook(`${HOST}/bot${TOKEN}`);
 
