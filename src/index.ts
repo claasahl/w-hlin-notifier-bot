@@ -4,6 +4,7 @@ import express from "express";
 import bodyParser from "body-parser";
 
 import * as wahlin from "./wahlin";
+import { link } from "fs";
 
 // replace the value below with the Telegram token you receive from @BotFather
 const TOKEN = process.env.TOKEN || "";
@@ -59,21 +60,34 @@ function isFromParent(msg: TelegramBot.Message): boolean {
   return false;
 }
 
+async function sendPreview(chatId: number, newLinks: wahlin.ApartmentLink[]) {
+  const newApartments = newLinks.length;
+  if (newApartments == 0) {
+    return bot.sendMessage(chatId, `Found no new apartments.`);
+  } else if (newApartments == 1) {
+    return bot.sendMessage(chatId, `Found one new apartment.`);
+  } else if (newApartments > 1) {
+    return bot.sendMessage(chatId, `Found ${newApartments} new apartments.`);
+  }
+}
+
 async function fetchAndPublishApartments(chatId: number): Promise<void> {
   const browser = await wahlin.launchBrowser(EXECUTABLE);
   const links = await wahlin.fetchApartmentLinks(browser);
-  await bot.sendMessage(
-    chatId,
-    `Found ${links.length} apartment(s). Will send more details in a moments.`
-  );
+
+  const newLinks = links.filter(link => !apartments.has(link.link));
+  await sendPreview(chatId, newLinks);
   for (const link of links) {
-    try {
-      const apartment = await wahlin.fetchApartment(browser, link);
-      await bot.sendPhoto(chatId, apartment.screenshot, {
-        caption: apartment.link
-      });
-    } catch (error) {
-      await bot.sendMessage(chatId, link.link).catch(() => {});
+    if (!apartments.has(link.link)) {
+      try {
+        const apartment = await wahlin.fetchApartment(browser, link);
+        apartments.set(link.link, apartment);
+        await bot.sendPhoto(chatId, apartment.screenshot, {
+          caption: apartment.link
+        });
+      } catch (error) {
+        await bot.sendMessage(chatId, link.link).catch(() => {});
+      }
     }
   }
   return browser.close();
