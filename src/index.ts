@@ -47,12 +47,8 @@ function isFromParent(msg: TelegramBot.Message): boolean {
   return false;
 }
 
-
-
-
-
 async function fetchAndPublishApartments(chatId: number): Promise<void> {
-  const browser = await wahlin.launchBrowser();
+  const browser = await wahlin.launchBrowser(EXECUTABLE);
   const links = await wahlin.fetchApartmentLinks(browser);
   for (const link of links) {
     try {
@@ -71,7 +67,9 @@ new CronJob("00 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
 new CronJob("00 36 13 * * 1-5", () => apartments.clear()).start();
-new CronJob("0 */30 * * * *", () => bot.sendMessage(CHAT_ID, new Date().toISOString()));
+new CronJob("0 */30 * * * *", () =>
+  bot.sendMessage(CHAT_ID, new Date().toISOString())
+);
 
 // enable webHooks, if needed
 if (!polling) {
