@@ -21,9 +21,9 @@ const polling = typeof HOST === "undefined" || typeof PORT === "undefined";
 const bot = new TelegramBot(TOKEN, { polling, webHook: !polling });
 
 // Listen for "/apartments" messages.
-bot.onText(/\/apartments/, async msg => {
+bot.on("message", async msg => {
   const chatId = msg.chat.id;
-  if (isFromParent(msg)) {
+  if (msg.text && isFromParent(msg) && /\/apartments/.test(msg.text)) {
     try {
       await fetchAndPublishApartments(chatId);
       const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
@@ -37,6 +37,10 @@ bot.onText(/\/apartments/, async msg => {
       console.log(error);
       await bot.sendSticker(chatId, FAILED_STICKER_ID);
     }
+  } else {
+    await bot.sendMessage(chatId, "I shall obay mee masters, only!", {
+      reply_to_message_id: msg.message_id
+    });
   }
 });
 
