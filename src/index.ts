@@ -20,14 +20,22 @@ const apartments = new Map<string, wahlin.Apartment>();
 const polling = typeof HOST === "undefined" || typeof PORT === "undefined";
 const bot = new TelegramBot(TOKEN, { polling, webHook: !polling });
 
-// Listen for "/apartments" messages.
-bot.on("message", async msg => {
+// Listen for "/apartments", "/clear" messages.
+bot.onText(/\/apartments/, async msg =>
+  execute(msg, fetchAndPublishApartments)
+);
+bot.onText(/\/clear/, async msg => execute(msg, clearApartments));
+
+async function execute(
+  msg: TelegramBot.Message,
+  command: (chatId: number) => Promise<void>
+): Promise<void> {
   const chatId = msg.chat.id;
-  if (msg.text && isFromParent(msg) && /\/apartments/.test(msg.text)) {
+  if (isFromParent(msg)) {
     try {
-      await fetchAndPublishApartments(chatId);
+      await command(chatId);
       const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
-        keyboard: [[{ text: "/apartments" }]],
+        keyboard: [[{ text: "/apartments" }, { text: "/clear" }]],
         resize_keyboard: true
       };
       await bot.sendSticker(chatId, SUCCESS_STICKER_ID, {
@@ -42,7 +50,7 @@ bot.on("message", async msg => {
       reply_to_message_id: msg.message_id
     });
   }
-});
+}
 
 function isFromParent(msg: TelegramBot.Message): boolean {
   if (msg.from) {
@@ -54,6 +62,10 @@ function isFromParent(msg: TelegramBot.Message): boolean {
 async function fetchAndPublishApartments(chatId: number): Promise<void> {
   const browser = await wahlin.launchBrowser(EXECUTABLE);
   const links = await wahlin.fetchApartmentLinks(browser);
+  await bot.sendMessage(
+    chatId,
+    `Found ${links.length} apartment(s). Will send more details in a moments.`
+  );
   for (const link of links) {
     try {
       const apartment = await wahlin.fetchApartment(browser, link);
@@ -67,14 +79,15 @@ async function fetchAndPublishApartments(chatId: number): Promise<void> {
   return browser.close();
 }
 
+async function clearApartments() {
+  apartments.clear();
+}
+
 // automatically fetch and publish apartments
 new CronJob("00 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
-new CronJob("00 36 13 * * 1-5", () => apartments.clear()).start();
-new CronJob("0 */30 * * * *", () =>
-  bot.sendMessage(CHAT_ID, new Date().toISOString())
-);
+new CronJob("00 36 13 * * 1-5", clearApartments).start();
 
 // enable webHooks, if needed
 if (!polling) {
