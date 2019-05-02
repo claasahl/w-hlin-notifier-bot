@@ -1,14 +1,11 @@
 import TelegramBot from "node-telegram-bot-api";
 import { CronJob } from "cron";
-import express from "express";
-import bodyParser from "body-parser";
 
 import * as wahlin from "./wahlin";
+import { Browser } from "puppeteer";
 
 // replace the value below with the Telegram token you receive from @BotFather
 const TOKEN = process.env.TOKEN || "";
-const PORT = Number(process.env.PORT);
-const HOST = process.env.HOST;
 const PARENTS = (process.env.PARENTS || "").split(",");
 const CHAT_ID = (process.env.CHAT_ID as number | undefined) || -1;
 const EXECUTABLE = process.env.PUPPETEER_EXECUTABLE;
@@ -19,8 +16,7 @@ const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
 };
 
 // Create a bot that uses 'polling' to fetch new updates
-const polling = typeof HOST === "undefined" || typeof PORT === "undefined";
-const bot = new TelegramBot(TOKEN, { polling, webHook: !polling });
+const bot = new TelegramBot(TOKEN, { polling: true });
 
 // Listen for "/apartments", "/clear" messages.
 bot.onText(/\/apartments/, async msg =>
@@ -104,18 +100,3 @@ new CronJob("00 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
 new CronJob("00 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
-
-// enable webHooks, if needed
-if (!polling) {
-  bot.setWebHook(`${HOST}/bot${TOKEN}`);
-
-  const app = express();
-  app.use(bodyParser.json());
-  app.post(`/bot${TOKEN}`, (req, res) => {
-    bot.processUpdate(req.body);
-    res.sendStatus(200);
-  });
-  app.listen(PORT, () => {
-    console.log(`Server is listening on ${PORT}`);
-  });
-}
