@@ -32,7 +32,6 @@ async function execute(
   const chatId = msg.chat.id;
   if (isFromParent(msg)) {
     try {
-      bot.sendMessage(chatId, JSON.stringify(msg.chat, null, 2));
       await command(chatId);
     } catch (error) {
       await bot.sendMessage(chatId, error.message, {
