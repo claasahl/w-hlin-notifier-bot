@@ -118,4 +118,3 @@ new CronJob("0 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
 new CronJob("0 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
-new CronJob("0,30 * * * * 1-5", () => clearApartments(CHAT_ID)).start();
