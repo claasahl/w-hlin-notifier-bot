@@ -7,7 +7,7 @@ import { Browser } from "puppeteer";
 // replace the value below with the Telegram token you receive from @BotFather
 const TOKEN = process.env.TOKEN || "";
 const PARENTS = (process.env.PARENTS || "").split(",");
-const CHAT_ID = (process.env.CHAT_ID as number | undefined) || -1;
+const CHAT_ID = process.env.CHAT_ID || "";
 const EXECUTABLE = process.env.PUPPETEER_EXECUTABLE;
 const apartments = new Map<string, wahlin.Apartment>();
 const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
@@ -27,11 +27,12 @@ bot.onText(/\/clear/, async msg => execute(msg, clearApartments));
 
 async function execute(
   msg: TelegramBot.Message,
-  command: (chatId: number) => Promise<void>
+  command: (chatId: number | string) => Promise<void>
 ): Promise<void> {
   const chatId = msg.chat.id;
   if (isFromParent(msg)) {
     try {
+      bot.sendMessage(chatId, JSON.stringify(msg.chat, null, 2));
       await command(chatId);
     } catch (error) {
       await bot.sendMessage(chatId, error.message, {
@@ -52,7 +53,10 @@ function isFromParent(msg: TelegramBot.Message): boolean {
   return false;
 }
 
-async function sendPreview(chatId: number, newLinks: wahlin.ApartmentLink[]) {
+async function sendPreview(
+  chatId: number | string,
+  newLinks: wahlin.ApartmentLink[]
+) {
   const newApartments = newLinks.length;
   if (newApartments == 0) {
     return bot.sendMessage(chatId, `Found no new apartments.`);
@@ -63,7 +67,9 @@ async function sendPreview(chatId: number, newLinks: wahlin.ApartmentLink[]) {
   }
 }
 
-async function fetchAndPublishApartments(chatId: number): Promise<void> {
+async function fetchAndPublishApartments(
+  chatId: number | string
+): Promise<void> {
   if (!browser) {
     browser = await wahlin.launchBrowser(EXECUTABLE);
   }
@@ -89,7 +95,7 @@ async function fetchAndPublishApartments(chatId: number): Promise<void> {
   }
 }
 
-async function clearApartments(chatId: number) {
+async function clearApartments(chatId: number | string) {
   // clear apartments
   const noApartments = apartments.size;
   apartments.clear();
@@ -112,3 +118,4 @@ new CronJob("0 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
 new CronJob("0 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
+new CronJob("0,30 * * * * 1-5", () => clearApartments(CHAT_ID)).start();
