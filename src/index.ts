@@ -57,7 +57,7 @@ async function sendPreview(chatId: number, newLinks: wahlin.ApartmentLink[]) {
   if (newApartments == 0) {
     return bot.sendMessage(chatId, `Found no new apartments.`);
   } else if (newApartments == 1) {
-    return bot.sendMessage(chatId, `Found one new apartment.`);
+    return bot.sendMessage(chatId, `Found 1 new apartment.`);
   } else if (newApartments > 1) {
     return bot.sendMessage(chatId, `Found ${newApartments} new apartments.`);
   }
@@ -108,7 +108,7 @@ async function clearApartments(chatId: number) {
 }
 
 // automatically fetch and publish apartments
-new CronJob("00 0-35/5 13 * * 1-5", () =>
+new CronJob("0 0-35/5 13 * * 1-5", () =>
   fetchAndPublishApartments(CHAT_ID)
 ).start();
-new CronJob("00 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
+new CronJob("0 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
