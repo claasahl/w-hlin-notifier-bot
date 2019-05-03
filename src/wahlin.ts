@@ -26,7 +26,7 @@ export async function fetchApartmentLinks(
 ): Promise<ApartmentLink[]> {
   const apartmentLinks: ApartmentLink[] = [];
   const page = await browser.newPage();
-  await page.goto("https://wahlinfastigheter.se/lediga-objekt/forrad/", {
+  await page.goto("https://wahlinfastigheter.se/lediga-objekt/lagenhet/", {
     waitUntil: "networkidle2"
   });
   const links = await page.$x("//h3/a[contains(@href, '/lediga-objekt/')]");
