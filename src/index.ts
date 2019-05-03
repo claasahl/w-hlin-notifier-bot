@@ -113,7 +113,21 @@ async function clearApartments(chatId: number | string) {
 }
 
 // automatically fetch and publish apartments
-new CronJob("0 0-35/5 13 * * 1-5", () =>
-  fetchAndPublishApartments(CHAT_ID)
-).start();
-new CronJob("0 36 13 * * 1-5", () => clearApartments(CHAT_ID)).start();
+new CronJob(
+  "0,30 * 15 * * 1-5",
+  () => {
+    console.log("triggered - 1", new Date().toISOString());
+    fetchAndPublishApartments(CHAT_ID);
+    console.log("triggered - 2", new Date().toISOString());
+  },
+  undefined,
+  true,
+  "Europe/Stockholm"
+);
+new CronJob(
+  "0 36 15 * * 1-5",
+  () => clearApartments(CHAT_ID),
+  undefined,
+  true,
+  "Europe/Stockholm"
+);
