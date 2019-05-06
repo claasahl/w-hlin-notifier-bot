@@ -1,1 +1,1 @@
-# w-hlin-notifier-bot
+# wahlin-notifier-bot
