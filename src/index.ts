@@ -114,7 +114,7 @@ async function clearApartments(chatId: number | string) {
 
 // automatically fetch and publish apartments
 new CronJob(
-  "0,30 0-35/5 13 * * 1-5",
+  "0 0-35/5 13 * * 1-5",
   () => fetchAndPublishApartments(CHAT_ID),
   undefined,
   true,
