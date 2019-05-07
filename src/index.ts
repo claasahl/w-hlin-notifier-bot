@@ -9,9 +9,16 @@ const TOKEN = process.env.TOKEN || "";
 const PARENTS = (process.env.PARENTS || "").split(",");
 const CHAT_ID = process.env.CHAT_ID || "";
 const EXECUTABLE = process.env.PUPPETEER_EXECUTABLE;
-const apartments = new Map<string, wahlin.Apartment>();
-const markupApartments: TelegramBot.ReplyKeyboardMarkup = {
-  keyboard: [[{ text: "/apartments" }, { text: "/clear" }]],
+const objects = new Map<string, wahlin.Apartment>();
+const reply_markup: TelegramBot.ReplyKeyboardMarkup = {
+  keyboard: [
+    [
+      { text: "/apartments" },
+      { text: "/storage" },
+      { text: "/parking" },
+      { text: "/clear" }
+    ]
+  ],
   resize_keyboard: true
 };
 let browser: Browser | undefined = undefined;
@@ -21,9 +28,15 @@ const bot = new TelegramBot(TOKEN, { polling: true });
 
 // Listen for "/apartments", "/clear" messages.
 bot.onText(/\/apartments/, async msg =>
-  execute(msg, fetchAndPublishApartments)
+  execute(msg, chatId => fetchAndPublishObjects(chatId, "lagenhet"))
 );
-bot.onText(/\/clear/, async msg => execute(msg, clearApartments));
+bot.onText(/\/storage/, async msg =>
+  execute(msg, chatId => fetchAndPublishObjects(chatId, "forrad"))
+);
+bot.onText(/\/parking/, async msg =>
+  execute(msg, chatId => fetchAndPublishObjects(chatId, "parkering"))
+);
+bot.onText(/\/clear/, async msg => execute(msg, clearObjects));
 
 async function execute(
   msg: TelegramBot.Message,
@@ -35,7 +48,7 @@ async function execute(
       await command(chatId);
     } catch (error) {
       await bot.sendMessage(chatId, error.message, {
-        reply_markup: markupApartments
+        reply_markup
       });
     }
   } else {
@@ -54,60 +67,59 @@ function isFromParent(msg: TelegramBot.Message): boolean {
 
 async function sendPreview(
   chatId: number | string,
-  newLinks: wahlin.ApartmentLink[]
+  newLinks: wahlin.ObjectLink[]
 ) {
-  const newApartments = newLinks.length;
-  if (newApartments == 0) {
-    return bot.sendMessage(chatId, `Found no new apartments.`);
-  } else if (newApartments == 1) {
-    return bot.sendMessage(chatId, `Found 1 new apartment.`);
-  } else if (newApartments > 1) {
-    return bot.sendMessage(chatId, `Found ${newApartments} new apartments.`);
+  const newObjects = newLinks.length;
+  if (newObjects == 0) {
+    return bot.sendMessage(chatId, `Found no new objects.`);
+  } else if (newObjects == 1) {
+    return bot.sendMessage(chatId, `Found 1 new object.`);
+  } else if (newObjects > 1) {
+    return bot.sendMessage(chatId, `Found ${newObjects} new objects.`);
   }
 }
 
-async function fetchAndPublishApartments(
-  chatId: number | string
+async function fetchAndPublishObjects(
+  chatId: number | string,
+  category: wahlin.ObjectCategory
 ): Promise<void> {
   if (!browser) {
     browser = await wahlin.launchBrowser(EXECUTABLE);
   }
-  const links = await wahlin.fetchApartmentLinks(browser);
+  const links = await wahlin.fetchObjectLinks(browser, category);
 
-  const newLinks = links.filter(link => !apartments.has(link.link));
+  const newLinks = links.filter(link => !objects.has(link.link));
   await sendPreview(chatId, newLinks);
   for (const link of links) {
-    if (!apartments.has(link.link)) {
+    if (!objects.has(link.link)) {
       try {
-        const apartment = await wahlin.fetchApartment(browser, link);
-        apartments.set(link.link, apartment);
+        const apartment = await wahlin.fetchObject(browser, link);
+        objects.set(link.link, apartment);
         await bot.sendPhoto(chatId, apartment.screenshot, {
           caption: apartment.link,
-          reply_markup: markupApartments
+          reply_markup
         });
       } catch (error) {
         await bot
-          .sendMessage(chatId, link.link, { reply_markup: markupApartments })
+          .sendMessage(chatId, link.link, { reply_markup })
           .catch(() => {});
       }
     }
   }
 }
 
-async function clearApartments(chatId: number | string) {
-  // clear apartments
-  const noApartments = apartments.size;
-  apartments.clear();
-  bot.sendMessage(chatId, `Cleared ${noApartments} apartment(s)`, {
-    reply_markup: markupApartments
-  });
+async function clearObjects(chatId: number | string) {
+  // clear objects
+  const noObjects = objects.size;
+  objects.clear();
+  bot.sendMessage(chatId, `Cleared ${noObjects} object(s)`, { reply_markup });
 
   // clear browser
   if (browser) {
     await browser.close();
     browser = undefined;
     bot.sendMessage(chatId, 'Stopped "browser" as well', {
-      reply_markup: markupApartments
+      reply_markup
     });
   }
 }
@@ -115,14 +127,14 @@ async function clearApartments(chatId: number | string) {
 // automatically fetch and publish apartments
 new CronJob(
   "0 0-35/5 13 * * 1-5",
-  () => fetchAndPublishApartments(CHAT_ID),
+  () => fetchAndPublishObjects(CHAT_ID, "lagenhet"),
   undefined,
   true,
   "Europe/Stockholm"
 );
 new CronJob(
   "0 36 13 * * 1-5",
-  () => clearApartments(CHAT_ID),
+  () => clearObjects(CHAT_ID),
   undefined,
   true,
   "Europe/Stockholm"

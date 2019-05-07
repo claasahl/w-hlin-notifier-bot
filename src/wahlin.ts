@@ -6,10 +6,12 @@ export interface Apartment {
   screenshot: Buffer | string;
 }
 
-export interface ApartmentLink {
+export interface ObjectLink {
   name: string;
   link: string;
 }
+
+export type ObjectCategory = "lagenhet" | "forrad" | "parkering" | "lokaler";
 
 export async function launchBrowser(
   executable?: string
@@ -21,12 +23,13 @@ export async function launchBrowser(
   return puppeteer.launch(options);
 }
 
-export async function fetchApartmentLinks(
-  browser: puppeteer.Browser
-): Promise<ApartmentLink[]> {
-  const apartmentLinks: ApartmentLink[] = [];
+export async function fetchObjectLinks(
+  browser: puppeteer.Browser,
+  category: ObjectCategory
+): Promise<ObjectLink[]> {
+  const apartmentLinks: ObjectLink[] = [];
   const page = await browser.newPage();
-  await page.goto("https://wahlinfastigheter.se/lediga-objekt/lagenhet/", {
+  await page.goto(`https://wahlinfastigheter.se/lediga-objekt/${category}/`, {
     waitUntil: "networkidle2"
   });
   const links = await page.$x("//h3/a[contains(@href, '/lediga-objekt/')]");
@@ -41,9 +44,9 @@ export async function fetchApartmentLinks(
   return Promise.resolve(apartmentLinks);
 }
 
-export async function fetchApartment(
+export async function fetchObject(
   browser: puppeteer.Browser,
-  apartment: ApartmentLink
+  apartment: ObjectLink
 ): Promise<Apartment> {
   const page = await browser.newPage();
   await page.goto(apartment.link, { waitUntil: "networkidle2" });
