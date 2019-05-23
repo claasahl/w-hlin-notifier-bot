@@ -65,6 +65,13 @@ function isFromParent(msg: TelegramBot.Message): boolean {
   return false;
 }
 
+function caption(apartment: wahlin.Apartment): string {
+  const name = apartment.name;
+  const facts = apartment.facts.map(({ key, value }) => `*${key}:* ${value}`);
+  const link = `[View Online](${apartment.link})`;
+  return [name, ...facts, link].join("\n");
+}
+
 async function sendPreview(
   chatId: number | string,
   newLinks: wahlin.ObjectLink[]
@@ -96,9 +103,10 @@ async function fetchAndPublishObjects(
         const apartment = await wahlin.fetchObject(browser, link);
         objects.set(link.link, apartment);
         await bot.sendPhoto(chatId, apartment.screenshot, {
-          caption: apartment.link,
-          reply_markup
-        });
+          caption: caption(apartment),
+          reply_markup,
+          parse_mode: "Markdown"
+        } as any);
       } catch (error) {
         await bot
           .sendMessage(chatId, link.link, { reply_markup })

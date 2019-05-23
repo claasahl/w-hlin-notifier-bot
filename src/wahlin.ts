@@ -1,9 +1,15 @@
 import puppeteer from "puppeteer";
 
+interface Fact {
+  key: string;
+  value: string;
+}
+
 export interface Apartment {
   name: string;
   link: string;
   screenshot: Buffer | string;
+  facts: Fact[];
 }
 
 export interface ObjectLink {
@@ -32,6 +38,8 @@ export async function fetchObjectLinks(
   await page.goto(`https://wahlinfastigheter.se/lediga-objekt/${category}/`, {
     waitUntil: "networkidle2"
   });
+  await page.click(".new-cookies-button");
+  await page.waitFor(500);
   const links = await page.$x("//h3/a[contains(@href, '/lediga-objekt/')]");
   for (const link of links) {
     const titleProp = await link.getProperty("title");
@@ -50,8 +58,6 @@ export async function fetchObject(
 ): Promise<Apartment> {
   const page = await browser.newPage();
   await page.goto(apartment.link, { waitUntil: "networkidle2" });
-  await page.click(".new-cookies-button");
-  await page.waitFor(500);
   const headers = await page.$x("//div[@class='fastighet']/div/h2");
   let name = apartment.name;
   if (headers.length > 0) {
@@ -63,6 +69,28 @@ export async function fetchObject(
   const photo =
     descriptions.length > 0 ? await descriptions[0].screenshot() : "";
 
+  const facts: Fact[] = [];
+  const keys = await page.$x(
+    '//ul[@class="infolistafastighet"]/li[@class="left"]'
+  );
+  const values = await page.$x(
+    '//ul[@class="infolistafastighet"]/li[@class="right"]'
+  );
+  for (var i = 0; i < Math.min(keys.length, values.length); i++) {
+    const key = String(
+      await (await keys[i].getProperty("textContent")).jsonValue()
+    ).trim();
+    const value = String(
+      await (await values[i].getProperty("textContent")).jsonValue()
+    ).trim();
+    facts.push({ key, value });
+  }
+
   await page.close();
-  return Promise.resolve({ name, link: apartment.link, screenshot: photo });
+  return Promise.resolve({
+    name,
+    link: apartment.link,
+    screenshot: photo,
+    facts
+  });
 }
