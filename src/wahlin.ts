@@ -70,12 +70,8 @@ export async function fetchObject(
     descriptions.length > 0 ? await descriptions[0].screenshot() : "";
 
   const facts: Fact[] = [];
-  const keys = await page.$x(
-    '//ul[@class="infolistafastighet"]/li[@class="left"]'
-  );
-  const values = await page.$x(
-    '//ul[@class="infolistafastighet"]/li[@class="right"]'
-  );
+  const keys = await page.$x('//li[@class="left"]');
+  const values = await page.$x('//li[@class="right"]');
   for (var i = 0; i < Math.min(keys.length, values.length); i++) {
     const key = String(
       await (await keys[i].getProperty("textContent")).jsonValue()
