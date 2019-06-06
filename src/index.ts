@@ -11,6 +11,8 @@ const TOKEN = process.env.TOKEN || "";
 const PARENTS = (process.env.PARENTS || "").split(",");
 const CHAT_ID = process.env.CHAT_ID || "";
 const EXECUTABLE = process.env.PUPPETEER_EXECUTABLE;
+const objects_per_chat = new Map<string, Set<string>>();
+const references_in_chats = new Map<string, Set<string>>();
 const objects = new Map<string, wahlin.Apartment>();
 const reply_markup: TelegramBot.ReplyKeyboardMarkup = {
   keyboard: [
@@ -97,13 +99,16 @@ async function fetchAndPublishObjects(
   }
   const links = await wahlin.fetchObjectLinks(browser, category);
 
-  const newLinks = links.filter(link => !objects.has(link.link));
+  const newLinks = links.filter(link => !hasObject(chatId, link.link));
   await sendPreview(chatId, newLinks);
   for (const link of links) {
-    if (!objects.has(link.link)) {
+    if (!hasObject(chatId, link.link)) {
       try {
-        const apartment = await wahlin.fetchObject(browser, link);
-        objects.set(link.link, apartment);
+        let apartment = getObject(link.link);
+        if (!apartment) {
+          apartment = await wahlin.fetchObject(browser, link);
+        }
+        putObject(chatId, link.link, apartment);
         await bot.sendPhoto(chatId, apartment.screenshot, {
           caption: caption(apartment),
           reply_markup,
@@ -119,18 +124,72 @@ async function fetchAndPublishObjects(
 }
 
 async function clearObjects(chatId: number | string) {
-  // clear objects
-  const noObjects = objects.size;
-  objects.clear();
+  // clear objects for chat / user
+  const key = String(chatId);
+  const objectLinks = getObjectLinks(key);
+  const noObjects = objectLinks.size;
+  objectLinks.forEach(link => clearObject(chatId, link));
+  objectLinks.clear();
   bot.sendMessage(chatId, `Cleared ${noObjects} object(s)`, { reply_markup });
 
   // clear browser
-  if (browser) {
+  if (objects.size === 0 && browser) {
     await browser.close();
     browser = undefined;
-    bot.sendMessage(chatId, 'Stopped "browser" as well', {
-      reply_markup
-    });
+    objects_per_chat.clear();
+    references_in_chats.clear();
+  }
+}
+
+function hasObject(chatId: number | string, link: string): boolean {
+  const key = String(chatId);
+  return getObjectLinks(key).has(link);
+}
+
+function putObject(
+  chatId: number | string,
+  link: string,
+  apartment: wahlin.Apartment
+): void {
+  const key = String(chatId);
+  getObjectLinks(key).add(link);
+  getReferences(link).add(key);
+  objects.set(link, apartment);
+}
+
+function getObject(link: string): wahlin.Apartment | undefined {
+  return objects.get(link);
+}
+
+function clearObject(chatId: number | string, link: string): void {
+  const key = String(chatId);
+  getObjectLinks(key).delete(link);
+  const references = getReferences(link);
+  references.delete(key);
+  if (references.size === 0) {
+    objects.delete(link);
+  }
+}
+
+function getObjectLinks(chatId: string): Set<string> {
+  const objectLinks = objects_per_chat.get(chatId);
+  if (objectLinks) {
+    return objectLinks;
+  } else {
+    const objectLinks = new Set<string>();
+    objects_per_chat.set(chatId, objectLinks);
+    return objectLinks;
+  }
+}
+
+function getReferences(link: string): Set<string> {
+  const references = references_in_chats.get(link);
+  if (references) {
+    return references;
+  } else {
+    const references = new Set<string>();
+    references_in_chats.set(link, references);
+    return references;
   }
 }
 
