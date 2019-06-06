@@ -1,5 +1,7 @@
 import TelegramBot from "node-telegram-bot-api";
 import { CronJob } from "cron";
+const Holidays = require("date-holidays");
+const SwedishHolidays = new Holidays("SE");
 
 import * as wahlin from "./wahlin";
 import { Browser } from "puppeteer";
@@ -132,17 +134,48 @@ async function clearObjects(chatId: number | string) {
   }
 }
 
+function isSwedishHoliday(date: Date = new Date()): false | string {
+  const holiday = SwedishHolidays.isHoliday(date);
+  if (holiday && holiday.type === "public") {
+    return holiday.name;
+  }
+  return false;
+}
+
 // automatically fetch and publish apartments
 new CronJob(
   "0 0-35/5 13 * * 1-5",
-  () => fetchAndPublishObjects(CHAT_ID, "lagenhet"),
+  () => {
+    if (!isSwedishHoliday()) {
+      fetchAndPublishObjects(CHAT_ID, "lagenhet");
+    }
+  },
   undefined,
   true,
   "Europe/Stockholm"
 );
 new CronJob(
   "0 36 13 * * 1-5",
-  () => clearObjects(CHAT_ID),
+  () => {
+    if (!isSwedishHoliday()) {
+      clearObjects(CHAT_ID);
+    }
+  },
+  undefined,
+  true,
+  "Europe/Stockholm"
+);
+new CronJob(
+  "0 0 13 * * 1-5",
+  () => {
+    const name = isSwedishHoliday();
+    if (name) {
+      bot.sendMessage(
+        CHAT_ID,
+        `Today is "${name}", I won't look for apartments unless you instruct me to.`
+      );
+    }
+  },
   undefined,
   true,
   "Europe/Stockholm"

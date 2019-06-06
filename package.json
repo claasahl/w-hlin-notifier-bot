@@ -23,6 +23,7 @@
   "homepage": "https://github.com/claasahl/wahlin-notifier-bot#readme",
   "dependencies": {
     "cron": "^1.5.0",
+    "date-holidays": "^1.4.0",
     "dotenv": "^6.1.0",
     "node-telegram-bot-api": "^0.30.0",
     "puppeteer": "1.10.0"
